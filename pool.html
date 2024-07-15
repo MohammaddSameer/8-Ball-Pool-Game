@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <style>
+        body {
+            text-align: center;
+            background-color: hwb(0 14% 86%);
+
+        }
+
+        h1 {
+            font-size: 50px;
+            text-align: center; 
+            font-family: 'Courier New', Courier, monospace;
+            color: white;
+        }
+        h2{
+            font-size: 20;
+            color: white;
+        }
+    </style>
+
+    <title>8 Ball Pool Game</title>
+</head>
+
+<body>
+
+    <h1>8 Ball Pool Game</h1>
+
+    <!-- <img src="table00.svg" alt="Pool Table" style="display: block; margin: 0 auto;"> -->
+    <!-- <canvas id="myCanvas" width="700" height="1375"></canvas> -->
+    <canvas id="myCanvas" width="900" height="1575"onmousemove="trackit(event);"    ></canvas>
+
+
+
+
+
+</body>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.3/jquery.min.js">
+
+</script>
+<script>
+
+
+    let cueBall
+    let cueBallX
+    let cueBallY
+    let track
+    let endX;
+    let endY;
+    let cueBallPosX
+    let cueBallPosY
+
+fetch('table00.svg')
+        .then(response => response.text())
+        .then(svgData => {
+            const parser = new DOMParser();
+            const svgDoc = parser.parseFromString(svgData, 'image/svg+xml');
+
+            for(child of svgDoc.children[0].children)
+            {
+                if(child.getAttribute("fill") == "WHITE")
+                {
+                    cueBall = child
+                    cueBallX = child.getAttribute("cx") / 1400 * 700 + 14 + 100
+                    cueBallPosX = child.getAttribute("cx") 
+                    cueBallY = child.getAttribute("cy") / 2750 * 1375 + 14 + 125
+                    cueBallPosY = child.getAttribute("cy") 
+                }
+            }
+        })
+
+
+
+const myCanvas = document.getElementById("myCanvas");
+const ctx = myCanvas.getContext("2d");
+
+// ctx.fillRect(0, 0, 900, 1575);
+var canvasTable = new Image();
+canvasTable.src = "table00.svg";
+
+function drawMap()
+{
+    ctx.drawImage(canvasTable, 100, 125);
+}
+
+function init()
+{
+    drawMap();
+}
+
+canvasTable.onload = function()
+{
+    init();
+}
+
+const canvasEle = document.getElementById('myCanvas');
+const context = canvasEle.getContext('2d');
+let startPosition = {x: 0, y: 0};
+let lineCoordinates = {x: 0, y: 0};
+let isDrawStart = false;
+
+const getClientOffset = (event) => {
+    const {pageX, pageY} = event.touches ? event.touches[0] : event;
+    const x = pageX - canvasEle.offsetLeft;
+    const y = pageY - canvasEle.offsetTop;
+
+    return {
+        x,
+        y
+    } 
+}
+
+const drawLine = () => {
+    ctx.lineWidth = 6;
+    ctx.lineCap = "round";
+    context.beginPath();
+    context.moveTo(cueBallX, cueBallY);
+    context.lineTo(lineCoordinates.x, lineCoordinates.y);
+    context.stroke();
+}
+
+const mouseDownListener = (event) => {
+    startPosition = getClientOffset(event);
+    isDrawStart = true;
+    track = true
+}
+
+const mouseMoveListener = (event) => {
+    if(!isDrawStart) return;
+  
+    lineCoordinates = getClientOffset(event);
+    clearCanvas();
+    drawMap();
+    drawLine();
+}
+
+const mouseupListener = (event) => {
+    isDrawStart = false;
+    console.log("x:", event.pageX, "y:", event.pageY); // Print x and y values to console
+    endX = event.pageX
+    endY = event.pageY
+    calculateVelocity();
+    track = false
+    clearCanvas();
+    drawMap();
+
+}
+
+const clearCanvas = () => {
+    context.clearRect(0, 0, canvasEle.width, canvasEle.height);
+}
+
+
+
+function trackit( event )
+{
+    if (track)
+	{
+	    $('#valx').remove();
+        $('#valy').remove();
+        $('<div id="valx">'+event.pageX+'</div>').appendTo("#x");
+        $('<div id="valy">'+event.pageY+'</div>').appendTo("#y");
+
+	}
+}
+
+function calculateVelocity()
+{
+    const rectangle = myCanvas.getBoundingClientRect()
+
+    mouseX = endX - rectangle.left
+    mouseY = endY - rectangle.top
+    
+    velocityX = mouseX - cueBallX
+    
+    velocityY = mouseY - cueBallY
+
+    const c = Math.sqrt((velocityX * velocityX) + (velocityY + velocityY));
+    let velocity = 10000 * c / 125
+    
+    if (velocity > 10000)
+    {
+        console.log("IFFFFFFFFFFF")
+        velocity = 10000
+    }
+
+    velocityX = velocity * (-velocityX / c)
+    velocityY = velocity * (-velocityY / c)
+
+
+    console.log("Velocity X:", velocityX, "Velocity Y:", velocityY);
+
+
+    $.post("/display.html",
+    {
+        velocityX: velocityX,
+        velocityY: velocityY
+        // cueBallPosX: cueBallPosX,
+        // cueBallPosY: cueBallPosY
+    },
+    function(data)
+    {
+        let index = 0
+        let svgArray = data.split("|")
+        let arrayLen = svgArray.length
+        var id = setInterval(()=>{
+        if (index == arrayLen - 1)
+        {
+            const parser = new DOMParser()
+            const svg = parser.parseFromString(svgArray[index], 'image/svg+xml');
+            for(child of svg.children[0].children)
+            {
+                if(child.getAttribute("fill") == "WHITE")
+                {
+                    cueBall = child
+                    cueBallX = child.getAttribute("cx") / 1400 * 700 + 14 + 100
+                    cueBallPosX = child.getAttribute("cx") 
+                    cueBallY = child.getAttribute("cy") / 2750 * 1375 + 14 + 125
+                    cueBallPosY = child.getAttribute("cy") 
+                }
+            }
+            clearInterval(id)
+        }
+        else
+        {
+            let image = new Blob([svgArray[index]], {type: 'image/svg+xml'})
+            let imageUrl = URL.createObjectURL(image)
+            canvasTable.src = imageUrl
+
+            drawMap()
+            index++
+        }
+        }
+        )
+    })
+
+
+    
+}
+
+    
+
+canvasEle.addEventListener('mousedown', mouseDownListener);
+canvasEle.addEventListener('mousemove', mouseMoveListener);
+document.querySelector("body").addEventListener('mouseup', mouseupListener);
+
+canvasEle.addEventListener('touchstart', mouseDownListener);
+canvasEle.addEventListener('touchmove', mouseMoveListener);
+canvasEle.addEventListener('touchend', mouseupListener);
+
+
+
+
+</script>
+
+</html>
